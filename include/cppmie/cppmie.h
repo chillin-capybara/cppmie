@@ -7,6 +7,7 @@
 
 #include <complex>
 #include <vector>
+#include <iostream>
 
 // TODO: make some template requirements
 
@@ -98,6 +99,95 @@ static inline void mie_core(const TIntercept& x, const TRefractive& m, size_t n_
 	qsca *= 2.0 / (x * x);
 	qback         = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
 
+	std::cout << "Qext  = " << qext << std::endl;
+	std::cout << "Qsca  = " << qsca << std::endl;
+	std::cout << "Qback = " << qback << std::endl;
+}
+
+/**
+ * @brief Microoptimized algorithm to calculate the mie scattering values.
+ * @details This implementation of the algorithm aims to minimize the memory usage and maximize the calculation speed
+ * by keeping most of the values in CPU registers.
+ * @tparam TIntercept
+ * @tparam TRefractive
+ * @param x
+ * @param m
+ * @param n_star
+ */
+template<typename TIntercept, typename TRefractive>
+static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, size_t n_star)
+{
+	TRefractive mx     = m * x;
+	TRefractive mx_inv = TIntercept(1) / mx;
+
+	// Determine the number of elements in for a_n and b_n
+	auto n = static_cast<size_t>(x + 4.0 * std::pow(x, 1.0 / 3.0) + 2.0 + 10.0);
+
+	// Calculate the rate of the Psi(x) function using recursion
+	auto r = calc_r(mx, n_star);
+
+	std::vector<std::complex<TIntercept>> a(n);
+	std::vector<std::complex<TIntercept>> b(n);
+
+	/**
+	 * \f[\Psi_{-1}(x) = sin(x) f\]
+	 * \f[\Psi_{0}(x) = \Psi_{-1} / x - cos(x) f\]
+	 */
+	TIntercept psi_0 = std::sin(x);
+	TIntercept psi_1 = psi_0 / x - std::cos(x);
+	TIntercept psi_2;
+
+	/**
+	 * \f[\Chi_{-1}(x) = cos(x) f\]
+	 * \f[\Chi_{0}(x) = \Chi_{-1} / x + sin(x) f\]
+	 */
+	TIntercept chi_0 = std::cos(x);
+	TIntercept chi_1 = chi_0 / x + std::sin(x);
+	TIntercept chi_2;
+
+	// psi[i+1] = psi_2
+	// chi[i+1] = chi_2
+
+	for (size_t i = 1; i < n + 1; i++) {
+		if (i < n) {
+			psi_2 = static_cast<TIntercept>(2 * i + 1) * psi_1 / x - psi_0;
+			chi_2 = static_cast<TIntercept>(2 * i + 1) * chi_1 / x - chi_0;
+
+		}
+
+		std::complex<TIntercept> factor = r[i - 1] / m + static_cast<TIntercept>(i) * (1.0 - 1.0 / (m * m)) / x;
+		std::complex<TIntercept> zeta_im1{psi_0, chi_0};  // zeta[i-1]
+		std::complex<TIntercept> zeta_i{psi_1, chi_1};            // zeta[i]
+
+		a[i - 1] = (factor * psi_1 - psi_0) / (factor * zeta_i - zeta_im1);
+		b[i - 1] = (r[i - 1] * m * psi_1 - psi_0) / (r[i - 1] * m * zeta_i - zeta_im1);
+
+		// Shift the register values into the correct index
+		psi_0 = psi_1;
+		psi_1 = psi_2;
+		chi_0 = chi_1;
+		chi_1 = chi_2;
+	}
+
+	TIntercept               qsca  = TIntercept(0);
+	TIntercept               qext  = TIntercept(0);
+	TIntercept               qback = TIntercept(0);
+	std::complex<TIntercept> qback_pre{0.0, 0.0};
+
+	for (size_t i = 1; i < n + 1; i++) {
+		qext += static_cast<TIntercept>(2 * i + 1) * (a[i - 1].real() + b[i - 1].real());
+		qsca += static_cast<TIntercept>(2 * i + 1)
+				* (std::abs(a[i - 1]) * std::abs(a[i - 1]) + std::abs(b[i - 1]) * std::abs(b[i - 1]));
+		qback_pre += static_cast<TIntercept>(2 * i + 1) * (a[i - 1] - b[i - 1]) * std::pow(-1.0, i - 1);
+	}
+
+	qext *= 2.0 / (x * x);
+	qsca *= 2.0 / (x * x);
+	qback         = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
+
+	std::cout << "Qext  = " << qext << std::endl;
+	std::cout << "Qsca  = " << qsca << std::endl;
+	std::cout << "Qback = " << qback << std::endl;
 }
 
 }
@@ -107,16 +197,27 @@ namespace cppmie {
 template<typename T>
 void mie(const T& x, const T& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
 {
+	std::cout << "--- CORE IMPLEMENTATION ---" << std::endl;
 	helpers::mie_core(x, m, n_star);
+	std::cout << "--- MICR IMPLEMENTATION ---" << std::endl;
+	helpers::mie_core_microopt(x, m, n_star);
 }
 
 template<typename T>
 void mie(const T& x, const std::complex<T>& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
 {
+	std::cout << "--- CORE IMPLEMENTATION ---" << std::endl;
 	if (m.imag() == T(0)) {  // If complex type was given, but it's still a real number
 		helpers::mie_core(x, m.real(), n_star);
 	} else {
 		helpers::mie_core(x, m, n_star);
+	}
+
+	std::cout << "--- MICR IMPLEMENTATION ---" << std::endl;
+	if (m.imag() == T(0)) {  // If complex type was given, but it's still a real number
+		helpers::mie_core_microopt(x, m.real(), n_star);
+	} else {
+		helpers::mie_core_microopt(x, m, n_star);
 	}
 }
 

@@ -14,8 +14,7 @@ int main(){
 	double x = CONST_PI * diameter / wavelength;
 	std::complex<double> m{1.5, 0.0};
 
-	for (int i = 0; i < 1000; i++) {
-		cppmie::mie(x, m);
-	}
+	cppmie::mie(x, m.real());
+
 	return 0;
 }
