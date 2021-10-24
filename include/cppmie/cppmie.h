@@ -8,29 +8,48 @@
 #include <complex>
 #include <vector>
 
-void mie_scattering(double x, std::complex<double> m, int n_star = 60000)
-{
-	//
-	std::vector<std::complex<double>> r(n_star + 1);
-	std::complex<double> mx = m * x;
+// TODO: make some template requirements
 
-	// Initialize the downward recurrence
+#define CPPMIE_NSTAR_DEFAULT (60000U)
+
+namespace cppmie::helpers {
+
+template<typename T>
+static inline std::vector<T> calc_r(const T& mx, size_t n_star)
+{
+	T mx_inv = T(1) / mx;  // Pre-Calculate 1/mx to speed up the computation
+
+	std::vector<T> r(n_star + 1);
+	r[n_star] = static_cast<T>(2 * n_star + 1) * mx_inv;
+
 	/**
 	 * Calculate the complex ratio \[ r_n(x) = \Psi_{n}(x) / \Psi_{n-1}(x) \] and the its downward recurrence
+	 * from \[ N_* \] until 0.
 	 * \f[
-	 	r_n(mx) = \frac{2n+1}{mx} - \frac{1}{r_{n+1}(mx)}.
+		 r_n(mx) = \frac{2n+1}{mx} - \frac{1}{r_{n+1}(mx)}.
 	 * \f]
 	 */
-	r[n_star] = static_cast<double>(2 *  n_star + 1) / mx;
-	for (int i = n_star - 1; i >= 1; i--) {
-		r[i - 1] = static_cast<double>(2 * i + 1) / mx - 1.0 / (r[i]);
+	for (size_t i = n_star - 1; i >= 1; i--) {
+		r[i - 1] = static_cast<T>(2 * i + 1) * mx_inv - 1.0 / (r[i]);
 	}
 
-	auto n = static_cast<size_t>(x+4.0*pow(x,1.0/3.0)+2.0+10.0);
-	std::vector<double> psi(n + 1);
-	std::vector<double> chi(n + 1);
-	std::vector<std::complex<double>> a(n);
-	std::vector<std::complex<double>> b(n);
+	return std::move(r);
+}
+
+template<typename TIntercept, typename TRefractive>
+static inline void mie_core(const TIntercept& x, const TRefractive& m, size_t n_star)
+{
+	TRefractive mx     = m * x;
+	TRefractive mx_inv = TIntercept(1) / mx;
+
+	// Determine the number of elements in for a_n and b_n
+	auto n = static_cast<size_t>(x + 4.0 * std::pow(x, 1.0 / 3.0) + 2.0 + 10.0);
+
+	// Calculate the rate of the Psi(x) function using recursion
+	auto r = calc_r(mx, n_star);
+
+	std::vector<TIntercept> psi(n + 1);
+	std::vector<TIntercept> chi(n + 1);
 
 	/**
 	 * \f[\Psi_{-1}(x) = sin(x) f\]
@@ -47,38 +66,63 @@ void mie_scattering(double x, std::complex<double> m, int n_star = 60000)
 	chi[1] = chi[0] / x + std::sin(x);
 
 	for (size_t i = 1; i < n; i++) {
-		psi[i+1] = static_cast<double>(2 * i + 1) * psi[i] / x - psi[i-1];
-		chi[i+1] = static_cast<double>(2 * i + 1) * chi[i] / x - chi[i-1];
+		psi[i + 1] = static_cast<TIntercept>(2 * i + 1) * psi[i] / x - psi[i - 1];
+		chi[i + 1] = static_cast<TIntercept>(2 * i + 1) * chi[i] / x - chi[i - 1];
 	}
 
-	for (size_t i = 1; i < n + 1; i++) {
-		std::complex<double> factor = r[i - 1] / m + static_cast<double>(i) * (1.0 - 1.0 / (m * m)) / x;
-		std::complex<double> zeta_im1{psi[i-1], chi[i-1]};  // zeta[i-1]
-		std::complex<double> zeta_i{psi[i], chi[i]};         // zeta[i]
+	std::vector<std::complex<TIntercept>> a(n);
+	std::vector<std::complex<TIntercept>> b(n);
 
-		a[i-1] = (factor * psi[i] - psi[i - 1]) / (factor * zeta_i - zeta_im1);
-		b[i-1] = (r[i-1] * m * psi[i] - psi[i-1]) / (r[i-1] * m * zeta_i - zeta_im1);
+	for (size_t i = 1; i < n + 1; i++) {  // TODO: Optimize the memory usage by calculating it simultaneously with the previous loop
+		std::complex<TIntercept> factor = r[i - 1] / m + static_cast<TIntercept>(i) * (1.0 - 1.0 / (m * m)) / x;
+		std::complex<TIntercept> zeta_im1{psi[i - 1], chi[i - 1]};  // zeta[i-1]
+		std::complex<TIntercept> zeta_i{psi[i], chi[i]};            // zeta[i]
 
-		if (a[i-1] != a[i-1] || b[i-1] != b[i-1]) {
-			break;
-		}
-
+		a[i - 1] = (factor * psi[i] - psi[i - 1]) / (factor * zeta_i - zeta_im1);
+		b[i - 1] = (r[i - 1] * m * psi[i] - psi[i - 1]) / (r[i - 1] * m * zeta_i - zeta_im1);
 	}
 
-	double qsca = 0.0;
-	double qext = 0.0;
-	double qback = 0.0;
-	std::complex<double> qback_pre{0.0, 0.0};
+	TIntercept               qsca  = TIntercept(0);
+	TIntercept               qext  = TIntercept(0);
+	TIntercept               qback = TIntercept(0);
+	std::complex<TIntercept> qback_pre{0.0, 0.0};
 
 	for (size_t i = 1; i < n + 1; i++) {
-		qext += static_cast<double>(2 * i + 1) * (a[i-1].real() + b[i-1].real());
-		qsca += static_cast<double>(2 * i + 1) * (std::abs(a[i-1]) * std::abs(a[i-1]) + std::abs(b[i-1]) * std::abs(b[i-1]));
-		qback_pre += static_cast<double>(2 * i + 1) * (a[i-1] - b[i-1]) * std::pow(-1.0, i-1);
+		qext += static_cast<TIntercept>(2 * i + 1) * (a[i - 1].real() + b[i - 1].real());
+		qsca += static_cast<TIntercept>(2 * i + 1)
+				* (std::abs(a[i - 1]) * std::abs(a[i - 1]) + std::abs(b[i - 1]) * std::abs(b[i - 1]));
+		qback_pre += static_cast<TIntercept>(2 * i + 1) * (a[i - 1] - b[i - 1]) * std::pow(-1.0, i - 1);
 	}
 
 	qext *= 2.0 / (x * x);
 	qsca *= 2.0 / (x * x);
-	qback = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
+	qback         = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
+
 }
+
+}
+
+namespace cppmie {
+
+template<typename T>
+void mie(const T& x, const T& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
+{
+	helpers::mie_core(x, m, n_star);
+}
+
+template<typename T>
+void mie(const T& x, const std::complex<T>& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
+{
+	if (m.imag() == T(0)) {  // If complex type was given, but it's still a real number
+		helpers::mie_core(x, m.real(), n_star);
+	} else {
+		helpers::mie_core(x, m, n_star);
+	}
+}
+
+}
+
+
+
 
 #endif //CPPMIE_CPPMIE_H

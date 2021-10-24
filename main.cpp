@@ -13,6 +13,9 @@ int main(){
 	double wavelength = 0.6328; // Wavelength in microns
 	double x = CONST_PI * diameter / wavelength;
 	std::complex<double> m{1.5, 0.0};
-	mie_scattering(x, m);
+
+	for (int i = 0; i < 1000; i++) {
+		cppmie::mie(x, m);
+	}
 	return 0;
 }
