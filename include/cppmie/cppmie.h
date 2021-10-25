@@ -13,9 +13,36 @@
 
 #define CPPMIE_NSTAR_DEFAULT (60000U)
 
+
+/**
+ * @brief The namespace `cppmie::helpers` contains the helper functions and templates for the
+ * calculation of Mie scattering efficiencies.
+ */
 namespace cppmie::helpers {
 
+/* --- Concepts for template argument requirements ------------------------------------------------------------------ */
+
 template<typename T>
+concept FloatingType = std::is_floating_point<T>::value;
+
+template<class T> requires FloatingType<T>
+struct is_complex_t : public std::false_type
+{
+};
+
+template<class T> requires FloatingType<T>
+struct is_complex_t<std::complex<T>> : public std::true_type
+{
+};
+
+template<typename T> requires FloatingType<T>
+constexpr bool is_complex()
+{ return is_complex_t<T>::value; }
+
+template<typename T>
+concept FloatOrComplex = std::is_floating_point<T>::value || is_complex<T>();
+
+template<typename T> requires FloatOrComplex<T>
 static inline std::vector<T> calc_r(const T& mx, size_t n_star)
 {
 	T mx_inv = T(1) / mx;  // Pre-Calculate 1/mx to speed up the computation
@@ -37,8 +64,9 @@ static inline std::vector<T> calc_r(const T& mx, size_t n_star)
 	return std::move(r);
 }
 
-template<typename TIntercept, typename TRefractive>
-static inline void mie_core(const TIntercept& x, const TRefractive& m, size_t n_star)
+template<typename TIntercept, typename TRefractive> requires FloatingType<TIntercept>
+static inline void mie_core(const TIntercept& x, const TRefractive& m, TIntercept& qext, TIntercept& qsca,
+							TIntercept& qback, size_t n_star)
 {
 	TRefractive mx     = m * x;
 	TRefractive mx_inv = TIntercept(1) / mx;
@@ -74,7 +102,9 @@ static inline void mie_core(const TIntercept& x, const TRefractive& m, size_t n_
 	std::vector<std::complex<TIntercept>> a(n);
 	std::vector<std::complex<TIntercept>> b(n);
 
-	for (size_t i = 1; i < n + 1; i++) {  // TODO: Optimize the memory usage by calculating it simultaneously with the previous loop
+	for (size_t i = 1;
+		 i < n + 1;
+		 i++) {
 		std::complex<TIntercept> factor = r[i - 1] / m + static_cast<TIntercept>(i) * (1.0 - 1.0 / (m * m)) / x;
 		std::complex<TIntercept> zeta_im1{psi[i - 1], chi[i - 1]};  // zeta[i-1]
 		std::complex<TIntercept> zeta_i{psi[i], chi[i]};            // zeta[i]
@@ -83,21 +113,26 @@ static inline void mie_core(const TIntercept& x, const TRefractive& m, size_t n_
 		b[i - 1] = (r[i - 1] * m * psi[i] - psi[i - 1]) / (r[i - 1] * m * zeta_i - zeta_im1);
 	}
 
-	TIntercept               qsca  = TIntercept(0);
-	TIntercept               qext  = TIntercept(0);
-	TIntercept               qback = TIntercept(0);
+	TIntercept               stack_qsca  = TIntercept(0);
+	TIntercept               stack_qext  = TIntercept(0);
+	TIntercept               stack_qback = TIntercept(0);
 	std::complex<TIntercept> qback_pre{0.0, 0.0};
 
 	for (size_t i = 1; i < n + 1; i++) {
-		qext += static_cast<TIntercept>(2 * i + 1) * (a[i - 1].real() + b[i - 1].real());
-		qsca += static_cast<TIntercept>(2 * i + 1)
+		stack_qext += static_cast<TIntercept>(2 * i + 1) * (a[i - 1].real() + b[i - 1].real());
+		stack_qsca += static_cast<TIntercept>(2 * i + 1)
 				* (std::abs(a[i - 1]) * std::abs(a[i - 1]) + std::abs(b[i - 1]) * std::abs(b[i - 1]));
 		qback_pre += static_cast<TIntercept>(2 * i + 1) * (a[i - 1] - b[i - 1]) * std::pow(-1.0, i - 1);
 	}
 
-	qext *= 2.0 / (x * x);
-	qsca *= 2.0 / (x * x);
-	qback         = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
+	stack_qext *= 2.0 / (x * x);
+	stack_qsca *= 2.0 / (x * x);
+	stack_qback   = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
+
+	// Write back to the given reference
+	qext  = stack_qext;
+	qsca  = stack_qsca;
+	qback = stack_qback;
 }
 
 /**
@@ -110,8 +145,9 @@ static inline void mie_core(const TIntercept& x, const TRefractive& m, size_t n_
  * @param m
  * @param n_star
  */
-template<typename TIntercept, typename TRefractive>
-static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, size_t n_star)
+template<typename TIntercept, typename TRefractive> requires FloatingType<TIntercept>
+static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, TIntercept& qext, TIntercept& qsca,
+									 TIntercept& qback, size_t n_star)
 {
 	TRefractive mx     = m * x;
 	TRefractive mx_inv = TIntercept(1) / mx;
@@ -141,9 +177,9 @@ static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, 
 	std::complex<TIntercept> a;
 	std::complex<TIntercept> b;
 
-	TIntercept               qsca  = TIntercept(0);
-	TIntercept               qext  = TIntercept(0);
-	TIntercept               qback = TIntercept(0);
+	TIntercept               stack_qsca  = TIntercept(0);
+	TIntercept               stack_qext  = TIntercept(0);
+	TIntercept               stack_qback = TIntercept(0);
 	std::complex<TIntercept> qback_pre{0.0, 0.0};
 
 	std::complex<TIntercept> factor;
@@ -163,8 +199,8 @@ static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, 
 		a = (factor * psi_1 - psi_0) / (factor * zeta_1 - zeta_0);
 		b = (r[i - 1] * m * psi_1 - psi_0) / (r[i - 1] * m * zeta_1 - zeta_0);
 
-		qext += static_cast<TIntercept>(2 * i + 1) * (a.real() + b.real());
-		qsca += static_cast<TIntercept>(2 * i + 1)
+		stack_qext += static_cast<TIntercept>(2 * i + 1) * (a.real() + b.real());
+		stack_qsca += static_cast<TIntercept>(2 * i + 1)
 				* (std::abs(a) * std::abs(a) + std::abs(b) * std::abs(b));
 		qback_pre += static_cast<TIntercept>(2 * i + 1) * (a - b) * std::pow(-1.0, i - 1);
 
@@ -175,32 +211,128 @@ static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, 
 		chi_1 = chi_2;
 	}
 
-	qext *= 2.0 / (x * x);
-	qsca *= 2.0 / (x * x);
-	qback         = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
+	stack_qext *= 2.0 / (x * x);
+	stack_qsca *= 2.0 / (x * x);
+	stack_qback   = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
+
+	// Write back to the given reference
+	qext  = stack_qext;
+	qsca  = stack_qsca;
+	qback = stack_qback;
 }
 
 }
 
 namespace cppmie {
 
-template<typename T>
-void mie(const T& x, const T& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
+/**
+ * @brief Calculation result (efficiencies) after Mie Scattering.
+ * @tparam TIntercept Type of the intercept parameter; float or double
+ */
+template<typename TIntercept> requires helpers::FloatingType<TIntercept>
+struct MieResult
 {
-	helpers::mie_core_microopt(x, m, n_star);
+  /** Extinction efficiency denoted as Q_ext in the Mie theory. */
+  TIntercept qext{};
+
+  /** Scattering efficiency denoted as Q_sca in the Mie theory. */
+  TIntercept qsca{};
+
+  /** Backscattering efficiency denoted as Q_back in the Mie theory. */
+  TIntercept qback{};
+
+  MieResult() = default;
+  MieResult(TIntercept qext_, TIntercept qsca_, TIntercept qback_)
+		  :qext(qext_), qsca(qsca_), qback(qback_)
+  { }
+};
+
+/* --- Functions ---------------------------------------------------------------------------------------------------- */
+/**
+ * @brief Calculate the mie scattering efficiencies \f$Q_{ext}\f$, \f$Q_{sca}\f$ and \f$Q_{back}\f$ using the
+ * algorithm of Hong Du \cite DuMie2004.
+ * @details This function uses a micro-optimized version of Hong Du's algorithm to minimize the memory usage and
+ * optimize the calculation speed.
+ * @tparam T Type of the intercept parameter and real refractive index; float or double
+ * @param x Intercept parameter; \f$x = \frac{2r\pi}{\lambda} = \frac{d\pi}{\lambda}\f$.
+ * @param m Real refractive index of the material; float or double
+ * @param n_star Number of steps for downward recurrence of the rate function \f$r_n(x) = \Psi_{n}(x) / \Psi_{n-1}(x)\f$.
+ * @return Data object containing the calculated efficiencies.
+ */
+template<typename T> requires helpers::FloatingType<T>
+MieResult<T> mie(const T& x, const T& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
+{
+	MieResult<T> result;
+	helpers::mie_core_microopt(x, m, result.qext, result.qsca, result.qback, n_star);
+	return result;
 }
 
-template<typename T>
-void mie(const T& x, const std::complex<T>& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
+/**
+ * @brief Calculate the mie scattering efficiencies \f$Q_{ext}\f$, \f$Q_{sca}\f$ and \f$Q_{back}\f$ using the
+ * algorithm of Hong Du \cite DuMie2004.
+ * @details This function uses a micro-optimized version of Hong Du's algorithm to minimize the memory usage and
+ * optimize the calculation speed.
+ * @tparam T Type of the intercept parameter and real refractive index; float or double
+ * @param x Intercept parameter; \f$x = \frac{2r\pi}{\lambda} = \frac{d\pi}{\lambda}\f$.
+ * @param m Complex refractive index of the material; complex<float> or complex<double>
+ * @param n_star Number of steps for downward recurrence of the rate function \f$r_n(x) = \Psi_{n}(x) / \Psi_{n-1}(x)\f$.
+ * @return Data object containing the calculated efficiencies.
+ */
+template<typename T> requires helpers::FloatingType<T>
+MieResult<T> mie(const T& x, const std::complex<T>& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
 {
-	if (m.imag() == T(0)) {  // If complex type was given, but it's still a real number
-		helpers::mie_core_microopt(x, m.real(), n_star);
+	MieResult<T> result;
+	if (m.imag() == T(0)) { // The refractive index is real -> ignore complex property
+		helpers::mie_core_microopt(x, m.real(), result.qext, result.qsca, result.qback, n_star);
+	}
+	else {
+		helpers::mie_core_microopt(x, m.real(), result.qext, result.qsca, result.qback, n_star);
+	}
+	return result;
+}
+
+/**
+ * @brief Calculate the mie scattering efficiencies Q_ext, Q_sca and $Q_back using the
+ * algorithm of Hong Du \cite DuMie2004.
+ * @details This function uses a micro-optimized version of Hong Du's algorithm to minimize the memory usage and
+ * optimize the calculation speed.
+ * @tparam T Type of the intercept parameter and real refractive index; float or double
+ * @param x Intercept parameter; \f$x = \frac{2r\pi}{\lambda} = \frac{d\pi}{\lambda}\f$.
+ * @param m Real refractive index of the material; float or double
+ * @param qext[out] Extinction efficiency denoted as Q_ext in the Mie theory.
+ * @param qsca[out] Scattering efficiency denoted as Q_sca in the Mie theory.
+ * @param qback[out] Backscattering efficiency denoted as Q_back in the Mie theory.
+ * @param n_star Number of steps for downward recurrence of the rate function \f$r_n(x) = \Psi_{n}(x) / \Psi_{n-1}(x)\f$.
+ */
+template<typename T> requires helpers::FloatingType<T>
+void mie(const T& x, const T& m, T& qext, T& qsca, T& qback, size_t n_star = CPPMIE_NSTAR_DEFAULT)
+{
+	helpers::mie_core_microopt(x, m, qext, qsca, qback, n_star);
+}
+
+/**
+ * @brief Calculate the mie scattering efficiencies Q_ext, Q_sca and $Q_back using the
+ * algorithm of Hong Du \cite DuMie2004.
+ * @details This function uses a micro-optimized version of Hong Du's algorithm to minimize the memory usage and
+ * optimize the calculation speed.
+ * @tparam T Type of the intercept parameter and real refractive index; float or double
+ * @param x Intercept parameter; \f$x = \frac{2r\pi}{\lambda} = \frac{d\pi}{\lambda}\f$.
+ * @param m Complex refractive index of the material; complex<float> or complex<double>
+ * @param qext[out] Extinction efficiency denoted as Q_ext in the Mie theory.
+ * @param qsca[out] Scattering efficiency denoted as Q_sca in the Mie theory.
+ * @param qback[out] Backscattering efficiency denoted as Q_back in the Mie theory.
+ * @param n_star Number of steps for downward recurrence of the rate function \f$r_n(x) = \Psi_{n}(x) / \Psi_{n-1}(x)\f$.
+ */
+template<typename T> requires helpers::FloatingType<T>
+void mie(const T& x, const std::complex<T>& m, T& qext, T& qsca, T& qback, size_t n_star = CPPMIE_NSTAR_DEFAULT)
+{
+	if (m.imag() == T(0)) {
+		helpers::mie_core_microopt(x, m.real(), qext, qsca, qback, n_star);
 	} else {
-		helpers::mie_core_microopt(x, m, n_star);
+		helpers::mie_core_microopt(x, m, qext, qsca, qback, n_star);
 	}
 }
 
 }
-
 
 #endif //CPPMIE_CPPMIE_H
