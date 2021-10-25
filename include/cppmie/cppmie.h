@@ -81,6 +81,7 @@ static inline void mie_core(const TIntercept& x, const TRefractive& m, TIntercep
 	std::vector<TIntercept> chi(n + 1);
 
 	/**
+	 * Set the initial values of \f$\Psi_n(x)\f$ for the recursive iteration.
 	 * \f[\Psi_{-1}(x) = sin(x) f\]
 	 * \f[\Psi_{0}(x) = \Psi_{-1} / x - cos(x) f\]
 	 */
@@ -88,12 +89,23 @@ static inline void mie_core(const TIntercept& x, const TRefractive& m, TIntercep
 	psi[1] = psi[0] / x - std::cos(x);
 
 	/**
+	 * Set the initial values of \f$\Chi_n(x)\f$ for the recursive iteration.
 	 * \f[\Chi_{-1}(x) = cos(x) f\]
 	 * \f[\Chi_{0}(x) = \Chi_{-1} / x + sin(x) f\]
 	 */
 	chi[0] = std::cos(x);
 	chi[1] = chi[0] / x + std::sin(x);
 
+	/**
+	 * Interatively calculate the values of \f$\Psi_n(x)\f$ and  \f$\Chi_n(x)\f$ from
+	 * 1 until N.
+	 * \f[
+	 * \Psi_{n+1}(x) = (2n + 1) \cdot \Psi_n(x) / x - \Psi_{n-1}(x)
+	 * \f]
+	 * \f[
+	 * \Chi_{n+1}(x) = (2n + 1) \cdot \Chi_(x) / x - \Chi_{n-1}(x)
+	 * \f]
+	 */
 	for (size_t i = 1; i < n; i++) {
 		psi[i + 1] = static_cast<TIntercept>(2 * i + 1) * psi[i] / x - psi[i - 1];
 		chi[i + 1] = static_cast<TIntercept>(2 * i + 1) * chi[i] / x - chi[i - 1];
@@ -102,6 +114,15 @@ static inline void mie_core(const TIntercept& x, const TRefractive& m, TIntercep
 	std::vector<std::complex<TIntercept>> a(n);
 	std::vector<std::complex<TIntercept>> b(n);
 
+	/**
+	 * Calculate the values of \f$a_n\f$ and \f$b_n\f$ as
+	 * \f[
+	 * a_n = \frac{[r_n(mx) / m + n(1 - 1/m^2)]/x \cdot \Psi_n(x) - \Psi_{n-1}(x)}{[r_n(mx) / m + n(1 - 1/m^2)]/x \cdot \Zeta_n(x) - \Zeta_n{n-1}(x)}
+	 * \f]
+	 * \f[
+	 * b_n = \frac{r_n(mx) \cdot m \cdot \Psi_n(x) - \Psi_{n-1}(x)}{r_n(mx) \cdot m \cdot \Zeta_n(x) - \Zeta_{n-1}(x)}
+	 * \f]
+	 */
 	for (size_t i = 1;
 		 i < n + 1;
 		 i++) {
