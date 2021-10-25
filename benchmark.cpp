@@ -11,10 +11,9 @@ static void bm_mie_real_refractive(benchmark::State& state) {
 	// Perform setup here
 	for (auto _ : state) {
 		// This code gets timed
-		cppmie::mie(4.96, 1.5);
+		cppmie::helpers::mie_core(4.96, 1.5, CPPMIE_NSTAR_DEFAULT);
 		numIterations += 1.0;
 	}
-
 	state.counters["exec_rate"] = benchmark::Counter(numIterations, benchmark::Counter::kIsRate);
 }
 
@@ -24,10 +23,23 @@ static void bm_mie_complex_refractive(benchmark::State& state) {
 	// Perform setup here
 	for (auto _ : state) {
 		// This code gets timed
-		cppmie::mie(4.96, {1.5, 0.1});
+		cppmie::helpers::mie_core(4.96, 1.5, CPPMIE_NSTAR_DEFAULT);
 		numIterations += 1.0;
 	}
 
+	state.counters["exec_rate"] = benchmark::Counter(numIterations, benchmark::Counter::kIsRate);
+}
+
+
+static void bm_mie_real_refractive_opt(benchmark::State& state) {
+	double numIterations = 0;
+
+	// Perform setup here
+	for (auto _ : state) {
+		// This code gets timed
+		cppmie::helpers::mie_core_microopt(4.96, 1.5, CPPMIE_NSTAR_DEFAULT);
+		numIterations += 1.0;
+	}
 	state.counters["exec_rate"] = benchmark::Counter(numIterations, benchmark::Counter::kIsRate);
 }
 
@@ -37,7 +49,7 @@ static void bm_mie_complex_refractive_opt(benchmark::State& state) {
 	// Perform setup here
 	for (auto _ : state) {
 		// This code gets timed
-		cppmie::mie(4.96, {1.5, 0.0});
+		cppmie::helpers::mie_core_microopt(4.96, 1.5, CPPMIE_NSTAR_DEFAULT);
 		numIterations += 1.0;
 	}
 
@@ -47,6 +59,7 @@ static void bm_mie_complex_refractive_opt(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(bm_mie_real_refractive);
 BENCHMARK(bm_mie_complex_refractive);
+BENCHMARK(bm_mie_real_refractive_opt);
 BENCHMARK(bm_mie_complex_refractive_opt);
 
 // Run the benchmark
