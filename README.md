@@ -55,7 +55,7 @@ After the include the namespace `cppmie::` which containe all the relevant funct
 
 ### 😎 Mie scattering efficiencies as data structure
 
-To retrieve the calculated scattering efficiencies as a data structure `cppmie::MieResult` call the function `cppmie::mie()` with two mandatory paramters (intercept parameter + refractive index) and one optional parameter $N_{*}$.
+To retrieve the calculated scattering efficiencies as a data structure `cppmie::MieResult` call the function `cppmie::mie()` with two mandatory paramters (intercept parameter + refractive index) and one optional parameter N_STAR.
 
 ```c++
 double diameter = 1.0;             // Diameter in microns
@@ -81,8 +81,8 @@ std::complex<double> m{1.5, 0.0};  // Complex refractive index
 
 double Qext, Qsca, Qback;
 
-MieResult result = cppmie::mie(x, m, Qext, Qsca, Qback);         // Without N_star
-MieResult result = cppmie::mie(x, m, Qext, Qsca, Qback, 60000);  // With N_star
+cppmie::mie(x, m, Qext, Qsca, Qback);         // Without N_star
+cppmie::mie(x, m, Qext, Qsca, Qback, 60000);  // With N_star
 ```
 
 ### 📊 Benchmark
@@ -109,7 +109,7 @@ bm_mie_complex_refractive_opt     253288 ns       253243 ns         2754 exec_ra
 
 🔲 -- Implement unit tests with pre-calculated results.
 
-🦆 -- Consider optimizing / inlining the rate function $r_n(x)$ for better performance.
+🦆 -- Consider optimizing / inlining the rate function r_n(x) for better performance.
 
 ## 📔 References
 
