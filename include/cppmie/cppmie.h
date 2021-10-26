@@ -1,6 +1,13 @@
-//
-// Created by Marcell Pigniczki on 24.10.21.
-//
+/**
+ * @file cppmie.h
+ * @author codesaurus97
+ * @brief Implementation of Mie scattering calculation using Hong Du's algorithm.
+ * @version 1.0.0
+ * @date 2021-10-26
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 
 #ifndef CPPMIE_CPPMIE_H
 #define CPPMIE_CPPMIE_H
@@ -9,10 +16,9 @@
 #include <vector>
 #include <iostream>
 
-// TODO: make some template requirements
-
+/** Default value of N_STAR for the downward recurrence of the rate function 
+ * r_n(x). */
 #define CPPMIE_NSTAR_DEFAULT (60000U)
-
 
 /**
  * @brief The namespace `cppmie::helpers` contains the helper functions and templates for the
@@ -251,6 +257,7 @@ static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, 
 		chi_1 = chi_2;
 	}
 
+	// TODO: Document the summig
 	stack_qext *= 2.0 / (x * x);
 	stack_qsca *= 2.0 / (x * x);
 	stack_qback   = std::abs(qback_pre) * std::abs(qback_pre) / (x * x);
