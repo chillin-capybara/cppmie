@@ -1,6 +1,6 @@
 # miecpp
 
-A library in C++20 for calculating Mie scattering efficiencies using the algorithm presented by Hong Du [[1]](#1).
+A **header-only** library in **C++20** for calculating Mie scattering efficiencies using the algorithm presented by Hong Du [[1]](#1).
 
 *I am open for suggestions and will accept pull requests that contribute to this library in a useful way. Feel free to create issues and come forward with feature requests.*
 
@@ -58,8 +58,10 @@ After the include the namespace `cppmie::` which containe all the relevant funct
 To retrieve the calculated scattering efficiencies as a data structure `cppmie::MieResult` call the function `cppmie::mie()` with two mandatory paramters (intercept parameter + refractive index) and one optional parameter N_STAR.
 
 ```c++
+const double pi = 3.14159265359;
 double diameter = 1.0;             // Diameter in microns
 double wavelength = 0.6328;        // Wavelength in microns
+double x = diameter * pi / wavelength;
 std::complex<double> m{1.5, 0.0};  // Complex refractive index
 
 MieResult result = cppmie::mie(x, m);         // Without N_star
@@ -75,8 +77,10 @@ std::cout << "Qback = " << result.Qback << std::endl;
 If you are designing your software for maximum efficiency, then return an data structure each time will not give the best performance. The function `cppmie::mie()` offers an alternative call, such that all the values will be written back to a given reference.
 
 ```c++
+const double pi = 3.14159265359;
 double diameter = 1.0;             // Diameter in microns
 double wavelength = 0.6328;        // Wavelength in microns
+double x = diameter * pi / wavelength;
 std::complex<double> m{1.5, 0.0};  // Complex refractive index
 
 double Qext, Qsca, Qback;
