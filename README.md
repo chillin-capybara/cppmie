@@ -13,7 +13,7 @@ Clone the repository into your project folder or add it as a submodule.
 ```bash
 git submodule add https://github.com/codesaurus97/cppmie.git
 cd cppmie
-git checkout master
+git checkout main
 ```
 
 If you are using CMake for your project, you can simply add the library as a subdirectory and link the header-only library to your project.
