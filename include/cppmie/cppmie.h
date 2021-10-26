@@ -280,17 +280,17 @@ template<typename TIntercept> requires helpers::FloatingType<TIntercept>
 struct MieResult
 {
   /** Extinction efficiency denoted as Q_ext in the Mie theory. */
-  TIntercept qext{};
+  TIntercept Qext{};
 
   /** Scattering efficiency denoted as Q_sca in the Mie theory. */
-  TIntercept qsca{};
+  TIntercept Qsca{};
 
   /** Backscattering efficiency denoted as Q_back in the Mie theory. */
-  TIntercept qback{};
+  TIntercept Qback{};
 
   MieResult() = default;
   MieResult(TIntercept qext_, TIntercept qsca_, TIntercept qback_)
-		  :qext(qext_), qsca(qsca_), qback(qback_)
+		  :Qext(qext_), Qsca(qsca_), Qback(qback_)
   { }
 };
 
@@ -310,7 +310,7 @@ template<typename T> requires helpers::FloatingType<T>
 MieResult<T> mie(const T& x, const T& m, size_t n_star = CPPMIE_NSTAR_DEFAULT)
 {
 	MieResult<T> result;
-	helpers::mie_core_microopt(x, m, result.qext, result.qsca, result.qback, n_star);
+	helpers::mie_core_microopt(x, m, result.Qext, result.Qsca, result.Qback, n_star);
 	return result;
 }
 
@@ -330,10 +330,10 @@ MieResult<T> mie(const T& x, const std::complex<T>& m, size_t n_star = CPPMIE_NS
 {
 	MieResult<T> result;
 	if (m.imag() == T(0)) { // The refractive index is real -> ignore complex property
-		helpers::mie_core_microopt(x, m.real(), result.qext, result.qsca, result.qback, n_star);
+		helpers::mie_core_microopt(x, m.real(), result.Qext, result.Qsca, result.Qback, n_star);
 	}
 	else {
-		helpers::mie_core_microopt(x, m.real(), result.qext, result.qsca, result.qback, n_star);
+		helpers::mie_core_microopt(x, m.real(), result.Qext, result.Qsca, result.Qback, n_star);
 	}
 	return result;
 }
