@@ -209,6 +209,16 @@ static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, 
 
 	for (size_t i = 1; i < n + 1; i++) {
 		if (i < n) {
+			/**
+			 * Interatively calculate the values of \f$\Psi_n(x)\f$ and  \f$\Chi_n(x)\f$ from
+			 * 1 until N.
+			 * \f[
+			 * \Psi_{n+1}(x) = (2n + 1) \cdot \Psi_n(x) / x - \Psi_{n-1}(x)
+			 * \f]
+			 * \f[
+			 * \Chi_{n+1}(x) = (2n + 1) \cdot \Chi_(x) / x - \Chi_{n-1}(x)
+			 * \f]
+			 */
 			psi_2 = static_cast<TIntercept>(2 * i + 1) * psi_1 / x - psi_0;
 			chi_2 = static_cast<TIntercept>(2 * i + 1) * chi_1 / x - chi_0;
 		}
@@ -217,6 +227,15 @@ static inline void mie_core_microopt(const TIntercept& x, const TRefractive& m, 
 		zeta_0 = {psi_0, chi_0};  // zeta[i-1]
 		zeta_1 = {psi_1, chi_1};  // zeta[i]
 
+		/**
+		 * Calculate the values of \f$a_n\f$ and \f$b_n\f$ as
+		 * \f[
+		 * a_n = \frac{[r_n(mx) / m + n(1 - 1/m^2)]/x \cdot \Psi_n(x) - \Psi_{n-1}(x)}{[r_n(mx) / m + n(1 - 1/m^2)]/x \cdot \Zeta_n(x) - \Zeta_n{n-1}(x)}
+		 * \f]
+		 * \f[
+		 * b_n = \frac{r_n(mx) \cdot m \cdot \Psi_n(x) - \Psi_{n-1}(x)}{r_n(mx) \cdot m \cdot \Zeta_n(x) - \Zeta_{n-1}(x)}
+		 * \f]
+		 */
 		a = (factor * psi_1 - psi_0) / (factor * zeta_1 - zeta_0);
 		b = (r[i - 1] * m * psi_1 - psi_0) / (r[i - 1] * m * zeta_1 - zeta_0);
 
