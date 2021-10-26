@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(cppmie)
-set(PROJECT_VERSION 1.0.0)
+set(PROJECT_VERSION 1.0.1)
 set(PROJECT_HOMEPAGE_URL https://github.com/codesaurus97/cppmie)
 
 # Require C++ 20 due to usage of concepts

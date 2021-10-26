@@ -2,7 +2,7 @@
  * @file cppmie.h
  * @author codesaurus97
  * @brief Implementation of Mie scattering calculation using Hong Du's algorithm.
- * @version 1.0.0
+ * @version 1.0.1
  * @date 2021-10-26
  * 
  * @copyright Copyright (c) 2021
