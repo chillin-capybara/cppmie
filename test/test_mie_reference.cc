@@ -1,14 +1,8 @@
 #include <cppmie/cppmie.h>
 #include <gtest/gtest.h>
 
-#include <vector>
 #include <complex>
-#include <algorithm>
-#include <numbers>
-using std::vector;
 using std::complex;
-using std::transform;
-using std::numbers::pi;
 
 class MieScatteringTestSet : public ::testing::TestWithParam<std::tuple<complex<double>, double, double, double>> {
  public:
