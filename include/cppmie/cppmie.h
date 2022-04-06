@@ -380,6 +380,64 @@ void mie(const T& x, const std::complex<T>& m, T& qext, T& qsca, T& qback, size_
     }
 }
 
+using std::complex, std::vector;
+
+void MieScattering(const double& x, const complex<double>& m,
+                   double& qext, double& qsca, double& qback, int n_star = CPPMIE_NSTAR_DEFAULT)
+{
+    const complex<double> mx = m * x;
+    const int n = static_cast<int>(std::ceil(x + 4.0 * pow(x, 1.0 / 3.0) + 2.0 + 10.0));
+
+    vector<complex<double>> rate(n_star + 1);
+    rate[n_star] = static_cast<double>(2 * n_star + 1) / mx;
+
+    for (int i = n_star - 1; i >= 0; i--) {
+        rate[i] = static_cast<double>(2 * i + 1) / mx - 1. / rate[i + 1];
+    }
+
+    // Approximate the Ricatti-Bessel functions
+    vector<double> psi(n_star + 2);
+    vector<double> chi(n_star + 2);
+    vector<complex<double>> zeta(n_star + 2);
+
+    psi[0] = std::cos(x);
+    psi[1] = std::sin(x);
+
+    chi[0] = std::sin(x);
+    chi[1] = - std::cos(x);
+
+    zeta[0] = {psi[0], chi[0]};
+    zeta[1] = {psi[1], chi[1]};
+
+    for (int i = 1; i <= n+1; i++) {
+        chi[i + 1] = static_cast<double>(2 * i - 1) * chi[i] / x - chi[i - 1];
+        psi[i + 1] = static_cast<double>(2 * i - 1) * psi[i] / x - psi[i - 1];
+        zeta[i + 1] = {psi[i + 1], chi[i + 1]};
+    }
+
+    vector<complex<double>> a(n + 2);
+    vector<complex<double>> b(n + 2);
+    for (int i = 0; i <= n+1; i++) {
+        complex<double> rf = (rate[i] / m + static_cast<double>(i) * (1.0 - 1.0 / (m * m)) / x);
+
+        a[i] = (rf * psi[i+1] - psi[i]) / (rf * zeta[i+1] - zeta[i]);
+        b[i] = (rate[i] * m * psi[i+1] - psi[i])
+            / (rate[i] * m * zeta[i+1] - zeta[i]);
+    }
+
+    qsca = 0.;
+    qext = 0.;
+
+    for (int i = 1; i < n; i++) {
+        qext += static_cast<double>(2 * i + 1) * (a[i].real() + b[i].real());
+        qsca += static_cast<double>(2 * i + 1) * (pow(abs(a[i]), 2.) + pow(abs(b[i]), 2.));
+    }
+
+    qext *= 2.0 / (x * x);
+    qsca *= 2.0 / (x * x);
+    qsca = qsca;
+}
+
 }
 
 #endif //CPPMIE_CPPMIE_H
