@@ -58,7 +58,9 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME} DESTINATION incl
 
 # --- Executable to run benchmark on the mie scattering calculation ----------------------------------------------------
 # TODO: Add benchmark to the cmakelist without adding it to the library
-# TODO: Add unit tests
+enable_testing()
+
 add_executable(test_mie_reference test/test_mie_reference.cc)
 target_link_libraries(test_mie_reference PRIVATE cppmie gtest_main)
-add_test(MieScattering test_scattering)
+
+add_test(NAME "Mie Scattering Reference" COMMAND test_mie_reference)
