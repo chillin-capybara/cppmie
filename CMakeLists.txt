@@ -56,6 +56,13 @@ install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME} DESTINATION include)
 
+FetchContent_Declare(googlebenchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG master) # need master for benchmark::benchmark
+
+FetchContent_MakeAvailable(
+        googlebenchmark)
+
 # --- Executable to run benchmark on the mie scattering calculation ----------------------------------------------------
 # TODO: Add benchmark to the cmakelist without adding it to the library
 enable_testing()
@@ -64,3 +71,9 @@ add_executable(test_mie_reference test/test_mie_reference.cc)
 target_link_libraries(test_mie_reference PRIVATE cppmie gtest_main)
 
 add_test(NAME "Mie Scattering Reference" COMMAND test_mie_reference)
+
+# --- Benchmarks -------------------------------------------------------------------------------------------------------
+
+add_executable(bench_mie_reference benchmark/bench_mie_reference.cc)
+target_link_libraries(bench_mie_reference PRIVATE cppmie benchmark::benchmark)
+add_test(NAME "Benchmark Reference" COMMAND bench_mie_reference)
