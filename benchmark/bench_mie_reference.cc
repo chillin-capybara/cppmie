@@ -35,5 +35,19 @@ static void BM_MieReference(benchmark::State& state) {
     }
 }
 
+static void BM_MieReferenceBaseline(benchmark::State& state) {
+    const int id = state.range(0);
+    const auto& [m,x,gold_qext,gold_qsca] = parameters[id];
+    double qext, qback, qsca;
+    for (auto _ : state) {
+        cppmie::MieScattering(x, m, qext, qsca, qback);
+        benchmark::DoNotOptimize(qext);
+        benchmark::DoNotOptimize(qback);
+        benchmark::DoNotOptimize(qsca);
+        benchmark::ClobberMemory();
+    }
+}
+
 BENCHMARK(BM_MieReference)->DenseRange(0,parameters.size(), 1);
+BENCHMARK(BM_MieReferenceBaseline)->DenseRange(0,parameters.size(), 1);
 BENCHMARK_MAIN();

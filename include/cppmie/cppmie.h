@@ -396,6 +396,64 @@ void MieScattering(const double& x, const complex<double>& m,
     }
 
     // Approximate the Ricatti-Bessel functions
+    double psi_0, psi_1, psi_2;
+    double chi_0, chi_1, chi_2;
+    complex<double> zeta_1, zeta_2;
+    complex<double> an, bn;
+
+    psi_0 = std::cos(x);
+    psi_1 = std::sin(x);
+
+    chi_0 = std::sin(x);
+    chi_1 = - std::cos(x);
+
+    zeta_1 = {psi_1, chi_1};
+
+    qsca = 0.;
+    qext = 0.;
+
+    for (int i = 1; i < n; i++) {
+        chi_2 = static_cast<double>(2 * i - 1) * chi_1 / x - chi_0;
+        psi_2 = static_cast<double>(2 * i - 1) * psi_1 / x - psi_0;
+        zeta_2 = {psi_2, chi_2};
+
+        complex<double> rf = (rate[i] / m + static_cast<double>(i) * (1.0 - 1.0 / (m * m)) / x);
+
+        an = (rf * psi_2 - psi_1) / (rf * zeta_2 - zeta_1);
+        bn = (rate[i] * m * psi_2 - psi_1)
+            / (rate[i] * m * zeta_2 - zeta_1);
+
+        qext += static_cast<double>(2 * i + 1) * (an.real() + bn.real());
+        qsca += static_cast<double>(2 * i + 1) * (abs(an) * abs(an) + abs(bn) * abs(bn));
+
+        psi_0 = psi_1;
+        psi_1 = psi_2;
+        chi_0 = chi_1;
+        chi_1 = chi_2;
+        zeta_1 = zeta_2;
+    }
+
+    qext *= 2.0 / (x * x);
+    qsca *= 2.0 / (x * x);
+    qsca = qsca;
+}
+
+
+void MieScatteringBaseLine(const double& x, const complex<double>& m,
+                   double& qext, double& qsca, double& qback, int n_star = CPPMIE_NSTAR_DEFAULT)
+{
+    const complex<double> mx = m * x;
+
+    const int n = static_cast<int>(std::ceil(x + 4.0 * pow(x, 1.0 / 3.0) + 2.0 + 10.0));
+
+    vector<complex<double>> rate(n_star + 1);
+    rate[n_star] = static_cast<double>(2 * n_star + 1) / mx;
+
+    for (int i = n_star - 1; i >= 0; i--) {
+        rate[i] = static_cast<double>(2 * i + 1) / mx - 1. / rate[i + 1];
+    }
+
+    // Approximate the Ricatti-Bessel functions
     vector<double> psi(n_star + 2);
     vector<double> chi(n_star + 2);
     vector<complex<double>> zeta(n_star + 2);
@@ -437,6 +495,7 @@ void MieScattering(const double& x, const complex<double>& m,
     qsca *= 2.0 / (x * x);
     qsca = qsca;
 }
+
 
 }
 

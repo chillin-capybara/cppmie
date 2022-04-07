@@ -6,6 +6,9 @@ set(PROJECT_HOMEPAGE_URL https://github.com/codesaurus97/cppmie)
 # Require C++ 20 due to usage of concepts
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 include(GNUInstallDirs)
 
 # --- Fetch Google Test for Unit Testing ---
@@ -75,5 +78,6 @@ add_test(NAME "Mie Scattering Reference" COMMAND test_mie_reference)
 # --- Benchmarks -------------------------------------------------------------------------------------------------------
 
 add_executable(bench_mie_reference benchmark/bench_mie_reference.cc)
+target_compile_options(bench_mie_reference PRIVATE "-fno-omit-frame-pointer")
 target_link_libraries(bench_mie_reference PRIVATE cppmie benchmark::benchmark)
 add_test(NAME "Benchmark Reference" COMMAND bench_mie_reference)
