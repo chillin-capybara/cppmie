@@ -9,7 +9,7 @@ class MieScatteringTestSet : public ::testing::TestWithParam<std::tuple<complex<
   double dummy;
 };
 
-constexpr double ApplyPrecision(const double& value, int precision)
+static double ApplyPrecision(const double& value, int precision)
 {
     const auto exponent = static_cast<int>(std::floor(std::log10(value)))+1;
     const double fixed_value = value * std::pow(10.,  -exponent + precision);
