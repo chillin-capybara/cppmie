@@ -78,7 +78,7 @@ void MieScattering(const T& x, const complex<T>& m,
     qext = 0.;
     complex<T> qback_stack = {0.0, 0.0};
 
-    for (int i = 1; i < n; i++) {
+    for (int i = 1; i <= n; i++) {
         chi_2 = static_cast<T>(2 * i - 1) * chi_1 / x - chi_0;
         psi_2 = static_cast<T>(2 * i - 1) * psi_1 / x - psi_0;
         zeta_2 = {psi_2, chi_2};
@@ -91,7 +91,7 @@ void MieScattering(const T& x, const complex<T>& m,
 
         qext += static_cast<T>(2 * i + 1) * (an.real() + bn.real());
         qsca += static_cast<T>(2 * i + 1) * (abs(an) * abs(an) + abs(bn) * abs(bn));
-        qback_stack = static_cast<T>(2 * i + 1) * (an - bn) * std::pow(-1.0, i - 1);
+        qback_stack = static_cast<T>(2 * i + 1) * (an - bn) * std::pow(-1.0, i);
 
         psi_0 = psi_1;
         psi_1 = psi_2;
@@ -156,10 +156,10 @@ void MieScatteringBaseLine(const T& x, const complex<T>& m,
     qback = 0.;
     complex<T> qback_stack {0.0, 0.0};
 
-    for (int i = 1; i < n; i++) {
+    for (int i = 1; i <= n; i++) {
         qext += static_cast<T>(2 * i + 1) * (a[i].real() + b[i].real());
         qsca += static_cast<T>(2 * i + 1) * (pow(abs(a[i]), 2.) + pow(abs(b[i]), 2.));
-        qback_stack += static_cast<T>(2 * i + 1) * (a[i] - b[i]) * std::pow(-1.0, i - 1);
+        qback_stack += static_cast<T>(2 * i + 1) * (a[i] - b[i]) * std::pow(-1.0, i);
     }
 
     qext *= 2.0 / (x * x);

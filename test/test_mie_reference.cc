@@ -20,8 +20,11 @@ static double ApplyPrecision(const double& value, int precision)
     const double fixed_value = value * std::pow(10.,  -exponent + precision);
     const auto round_value = static_cast<int64_t>(std::round(fixed_value));
     return static_cast<double>(round_value) * std::pow(10., - (-exponent+precision));
-
 }
+
+constexpr double tolerance = 0.00001;  // 1% tolerance for the validation
+constexpr double tolerance_wiscombe = 0.005;  // 1% tolerance for the validation
+#define ASSERT_NEAR_REL(val1, val2, tolerance) ASSERT_NEAR(val1, val2, val2*tolerance_wiscombe)
 
 TEST_P(MieScatteringTestSet, QbackQext_opt)
 {
@@ -36,8 +39,8 @@ TEST_P(MieScatteringTestSet, QbackQext_opt)
     cppmie::MieScattering(x, m, qext, qsca, qback);
 
     // test for 6 value precisions (NOT DECIMALS)
-    ASSERT_FLOAT_EQ(ApplyPrecision(qext,6), qext_gold);
-    ASSERT_FLOAT_EQ(ApplyPrecision(qsca, 6), qsca_gold);
+    ASSERT_NEAR_REL(qext, qext_gold, tolerance);
+    ASSERT_NEAR_REL(qsca, qsca_gold, tolerance);
 }
 
 TEST_P(MieScatteringTestSet, QbackQext_baseline)
@@ -52,9 +55,8 @@ TEST_P(MieScatteringTestSet, QbackQext_baseline)
     double qback;
     cppmie::MieScatteringBaseLine(x, m, qext, qsca, qback);
 
-    // test for 6 value precisions (NOT DECIMALS)
-    ASSERT_DOUBLE_EQ(ApplyPrecision(qext,6), qext_gold);
-    ASSERT_DOUBLE_EQ(ApplyPrecision(qsca, 6), qsca_gold);
+    ASSERT_NEAR_REL(qext, qext_gold, tolerance);
+    ASSERT_NEAR_REL(qsca, qsca_gold, tolerance);
 }
 
 TEST_P(MieScatteringWiscombe, QbackWiscombe)  // Wiscombe test for backscattering
@@ -68,7 +70,7 @@ TEST_P(MieScatteringWiscombe, QbackWiscombe)  // Wiscombe test for backscatterin
     double qback;
     cppmie::MieScatteringBaseLine(x, m, qext, qsca, qback);
 
-    ASSERT_DOUBLE_EQ(qback, qback_wiscombe);
+    ASSERT_NEAR(qback, qback_wiscombe, tolerance_wiscombe);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -117,10 +119,10 @@ INSTANTIATE_TEST_SUITE_P(
     MieScatteringWiscombe,
     ::testing::Values(
         std::make_tuple(complex<double>{1.5500, 0.0}, 5.213, 2.925340e+00),
-        std::make_tuple(complex<double>{0.0000, -1000.00}, 0.099, 8.630064e-04),
-        std::make_tuple(complex<double>(0.0000 -1000.00), 0.101, 9.347732e-04),
-        std::make_tuple(complex<double>(0.0000 -1000.00), 100., 9.990256e-01),
-        std::make_tuple(complex<double>(0.0000 -1000.00), 10000., 9.999997e-01)));
+        std::make_tuple(complex<double>{0.0000, 1000.00}, 0.099, 8.630064e-04),
+        std::make_tuple(complex<double>(0.0000, 1000.00), 0.101, 9.347732e-04),
+        std::make_tuple(complex<double>(0.0000, 1000.00), 100., 9.990256e-01),
+        std::make_tuple(complex<double>(0.0000, 1000.00), 10000., 9.999997e-01)));
 
 INSTANTIATE_TEST_SUITE_P(
     SmallerRefractiveThanEnvironment,
@@ -143,24 +145,24 @@ INSTANTIATE_TEST_SUITE_P(
     WaterDroplets,
     MieScatteringWiscombe,
     ::testing::Values(
-        std::make_tuple(complex<double>{1.3300, -0.00001}, 10., 8.462494e-02),
-        std::make_tuple(complex<double>{1.3300, -0.00001}, 100., 2.146327e+00),
-        std::make_tuple(complex<double>(1.3300, -0.00001), 1000., 3.757215e-02)));
+        std::make_tuple(complex<double>{1.3300, 0.00001}, 1., 8.462494e-02),
+        std::make_tuple(complex<double>{1.3300, 0.00001}, 100., 2.146327e+00),
+        std::make_tuple(complex<double>(1.3300, 0.00001), 10000., 3.757215e-02)));
 
 INSTANTIATE_TEST_SUITE_P(
     ModeratelyAbsorbingSpheres,
     MieScatteringWiscombe,
     ::testing::Values(
-        std::make_tuple(complex<double>{1.5, -1.}, 0.055, 1.695493e-05),
-        std::make_tuple(complex<double>{1.5, -1.}, 0.056, 1.822197e-05),
-        std::make_tuple(complex<double>{1.5, -1.}, 1., 5.730036e-01),
-        std::make_tuple(complex<double>{1.5, -1.}, 100., 1.724214e-01),
-        std::make_tuple(complex<double>(1.5, -1.), 1000., 1.724138e-01)));
+        std::make_tuple(complex<double>{1.5, 1.}, 0.055, 1.695493e-05),
+        std::make_tuple(complex<double>{1.5, 1.}, 0.056, 1.822197e-05),
+        std::make_tuple(complex<double>{1.5, 1.}, 1., 5.730036e-01),
+        std::make_tuple(complex<double>{1.5, 1.}, 100., 1.724214e-01),
+        std::make_tuple(complex<double>(1.5, 1.), 1000., 1.724138e-01)));
 
 INSTANTIATE_TEST_SUITE_P(
     BigRefraction,
     MieScatteringWiscombe,
     ::testing::Values(
-        std::make_tuple(complex<double>{10., -10.}, 1., 3.308998e+00),
-        std::make_tuple(complex<double>{10., -10.}, 100., 8.201267e-01),
-        std::make_tuple(complex<double>(10., -10.), 1000., 8.190052e-01)));
+        std::make_tuple(complex<double>{10., 10.}, 1., 3.308998e+00),
+        std::make_tuple(complex<double>{10., 10.}, 100., 8.201267e-01),
+        std::make_tuple(complex<double>(10., 10.), 1000., 8.190052e-01)));
