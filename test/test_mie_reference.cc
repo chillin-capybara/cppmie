@@ -14,16 +14,9 @@ class MieScatteringWiscombe : public ::testing::TestWithParam<std::tuple<complex
   double dummy;
 };
 
-static double ApplyPrecision(const double& value, int precision)
-{
-    const auto exponent = static_cast<int>(std::floor(std::log10(value)))+1;
-    const double fixed_value = value * std::pow(10.,  -exponent + precision);
-    const auto round_value = static_cast<int64_t>(std::round(fixed_value));
-    return static_cast<double>(round_value) * std::pow(10., - (-exponent+precision));
-}
 
-constexpr double tolerance = 0.00001;  // 1% tolerance for the validation
-constexpr double tolerance_wiscombe = 0.005;  // 1% tolerance for the validation
+constexpr double tolerance = 0.00001;  // 0.001% tolerance for the validation
+constexpr double tolerance_wiscombe = 0.01;  // 0.5 % tolerance for the validation
 #define ASSERT_NEAR_REL(val1, val2, tolerance) ASSERT_NEAR(val1, val2, val2*tolerance_wiscombe)
 
 TEST_P(MieScatteringTestSet, QbackQext_opt)
@@ -70,7 +63,7 @@ TEST_P(MieScatteringWiscombe, QbackWiscombe)  // Wiscombe test for backscatterin
     double qback;
     cppmie::MieScatteringBaseLine(x, m, qext, qsca, qback);
 
-    ASSERT_NEAR(qback, qback_wiscombe, tolerance_wiscombe);
+    ASSERT_NEAR_REL(qback, qback_wiscombe, tolerance_wiscombe);
 }
 
 INSTANTIATE_TEST_SUITE_P(
