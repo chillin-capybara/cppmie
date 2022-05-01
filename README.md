@@ -1,3 +1,5 @@
+[![CMake](https://github.com/codesaurus97/cppmie/actions/workflows/cmake.yml/badge.svg)](https://github.com/codesaurus97/cppmie/actions/workflows/cmake.yml)
+
 # miecpp
 
 A **header-only** library in **C++20** for calculating Mie scattering efficiencies using the algorithm presented by Hong Du [[1]](#1).
